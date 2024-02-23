@@ -1,7 +1,6 @@
 import telebot # pip install pyTelegramBotAPI
 import os
-from keep_alive import keep_alive
-keep_alive()
+
 
 TOKEN = "6840829556:AAErvmLhFVDPFUsSzWURIT9g12bdaIxNzrM" # replace with your bot token
 CHANNEL_ID = "-1002022252775" # replace with your channel ID
