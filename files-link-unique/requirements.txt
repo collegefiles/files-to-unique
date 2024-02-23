@@ -1,3 +1,2 @@
 pyTelegramBotAPI
 Flask
-python_telegram_bot==13.14
