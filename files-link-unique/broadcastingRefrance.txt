@@ -1,0 +1,92 @@
+import telebot  # pip install pyTelegramBotAPI
+import os
+import json
+from keep_alive import keep_alive
+
+keep_alive()
+
+TOKEN = "6840829556:AAErvmLhFVDPFUsSzWURIT9g12bdaIxNzrM"  # replace with your bot token
+CHANNEL_ID = "-1002022252775"  # replace with your channel ID
+UPDATE_CHANNEL_ID = "-1002102435643"  # replace with your update channel ID
+AUTHORIZED_USER_ID = 6897230899  # replace with your authorized user ID
+bot = telebot.TeleBot(TOKEN)
+
+# Load existing bot users from file
+try:
+    with open('bot_users.json', 'r') as file:
+        bot_users = json.load(file)
+except (FileNotFoundError, json.JSONDecodeError):
+    bot_users = {}
+
+@bot.message_handler(commands=['start', 'join'])
+def join(message):
+    try:
+        if message.from_user.id not in bot_users:
+            username = message.from_user.username if message.from_user.username else f"User {message.from_user.id}"
+            bot_users[message.from_user.id] = username
+            bot.send_message(message.chat.id, "Hello, I'm a file sharing bot. Send me any file and I'll provide a direct download link to it.")
+            # Save the new user to the file
+            with open('bot_users.json', 'w') as file:
+                json.dump(bot_users, file)
+        else:
+            bot.send_message(message.chat.id, "You are already a bot user.")
+    except Exception as e:
+        print(f"Error in join command: {e}")
+
+@bot.message_handler(content_types=['document', 'photo', 'audio', 'video', 'animation'])
+def handle_files(message):
+    try:
+        if message.from_user.id in bot_users:
+            # Forward the document to the channel
+            bot.forward_message(CHANNEL_ID, message.chat.id, message.message_id)
+            bot.send_message(message.chat.id, "File has been forwarded to the channel.")
+        else:
+            bot.send_message(message.chat.id, "Please use the /join command to join the bot.")
+    except Exception as e:
+        print(f"Error in handle_files: {e}")
+
+@bot.message_handler(commands=['broadcast'])
+def broadcast(message):
+    try:
+        if message.from_user.id == AUTHORIZED_USER_ID:
+            if message.reply_to_message:
+                for user_id in bot_users.keys():
+                    try:
+                        if message.reply_to_message.content_type == 'document':
+                            bot.send_document(user_id, message.reply_to_message.document.file_id)
+                        elif message.reply_to_message.content_type == 'photo':
+                            bot.send_photo(user_id, message.reply_to_message.photo[-1].file_id)
+                        elif message.reply_to_message.content_type == 'audio':
+                            bot.send_audio(user_id, message.reply_to_message.audio.file_id)
+                        elif message.reply_to_message.content_type == 'video':
+                            bot.send_video(user_id, message.reply_to_message.video.file_id)
+                        elif message.reply_to_message.content_type == 'animation':
+                            bot.send_animation(user_id, message.reply_to_message.animation.file_id)
+                        else:
+                            bot.send_message(user_id, message.reply_to_message.text)
+                    except Exception as e:
+                        print(f"Couldn't send message to {user_id}. Error: {e}")
+            else:
+                bot.send_message(message.chat.id, "Please reply to a message to broadcast it.")
+        else:
+            bot.send_message(message.chat.id, "You are not authorized to use the /broadcast command.")
+    except Exception as e:
+        print(f"Error in broadcast: {e}")
+
+@bot.message_handler(commands=['get_users'])
+def get_users(message):
+    try:
+        if message.from_user.id == AUTHORIZED_USER_ID:
+            user_list = ""
+            for user_id, username in bot_users.items():
+                user_list += f"UserID: {user_id}, Username: @{username}\n"
+            bot.send_message(message.chat.id, f"List of bot users:\n\n{user_list}")
+        else:
+            bot.send_message(message.chat.id, "You are not authorized to use the /get_users command.")
+    except Exception as e:
+        print(f"Error in get_users: {e}")
+
+try:
+    bot.polling()
+except Exception as e:
+    print(f"Error in bot polling: {e}")
