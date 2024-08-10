@@ -94,15 +94,23 @@ def get_user(message):
 @bot.message_handler(commands=['batch'])
 def batch(message):
     if message.from_user.id == AUTHORIZED_USER_ID:
-        unique_code = str(uuid.uuid4())
-        batch_data[unique_code] = []
-        save_batch_data()
-        bot.send_message(message.chat.id, f"Batch code generated: {unique_code}\nPlease send the files you want to include in this batch.")
-        bot.register_next_step_handler(message, handle_batch_files, unique_code)
+        bot.send_message(message.chat.id, "How many files do you want to batch?")
+        bot.register_next_step_handler(message, get_batch_file_count)
     else:
         bot.send_message(message.chat.id, "You are not authorized to use this command.")
 
-def handle_batch_files(message, unique_code):
+def get_batch_file_count(message):
+    try:
+        file_count = int(message.text)
+        unique_code = str(uuid.uuid4())
+        batch_data[unique_code] = []
+        save_batch_data()
+        bot.send_message(message.chat.id, f"Batch code generated: {unique_code}\nPlease send {file_count} files to include in this batch.")
+        bot.register_next_step_handler(message, handle_batch_files, unique_code, file_count)
+    except ValueError:
+        bot.send_message(message.chat.id, "Please enter a valid number.")
+
+def handle_batch_files(message, unique_code, file_count):
     if message.content_type in ['document', 'photo', 'audio', 'video']:
         file_id = None
         if message.content_type == 'document':
@@ -120,7 +128,11 @@ def handle_batch_files(message, unique_code):
                 'content_type': message.content_type
             })
             save_batch_data()
-            bot.send_message(message.chat.id, "File added to batch. Send more files or use the batch code to share.")
+            if len(batch_data[unique_code]) < file_count:
+                bot.send_message(message.chat.id, f"File added to batch. {file_count - len(batch_data[unique_code])} more files to go.")
+                bot.register_next_step_handler(message, handle_batch_files, unique_code, file_count)
+            else:
+                bot.send_message(message.chat.id, f"Batch complete. Use the code {unique_code} to share the files.")
     else:
         bot.send_message(message.chat.id, "Unsupported file type. Please send a document, photo, audio, or video.")
 
@@ -167,7 +179,18 @@ def track_users_and_send_file(message):
             bot.send_message(message.chat.id, "Please join the Update Channel to get your file. https://t.me/+lKjcWcpSK8AzYzQ1")
             return
 
-        bot.send_document(message.chat.id, message.text)
+        if message.text in batch_data:
+            for file_info in batch_data[message.text]:
+                if file_info['content_type'] == 'document':
+                    bot.send_document(message.chat.id, file_info['file_id'])
+                elif file_info['content_type'] == 'photo':
+                    bot.send_photo(message.chat.id, file_info['file_id'])
+                elif file_info['content_type'] == 'audio':
+                    bot.send_audio(message.chat.id, file_info['file_id'])
+                elif file_info['content_type'] == 'video':
+                    bot.send_video(message.chat.id, file_info['file_id'])
+        else:
+            bot.send_message(message.chat.id, "Sorry, I couldn't find a batch with that code.")
     except Exception as e:
         bot.send_message(message.chat.id, "Sorry, I couldn't find a file with that ID.")
         print(f"Error: {e}")
