@@ -221,6 +221,8 @@ def handle_load_user(message):
 @bot.message_handler(commands=['get_batch'])
 def get_batch(message):
     if message.from_user.id == AUTHORIZED_USER_ID:
+        with open(BATCH_DATA_FILE, 'r') as file:
+            batch_data = json.load(file)
         response = "Batch Codes\n"
         for code, files in batch_data.items():
             response += f"Code: {code}\nTotal documents: {len(files)}\nDocument file id: {', '.join([file['file_id'] for file in files])}\n\n"
@@ -275,6 +277,7 @@ def track_users_and_send_file(message):
             bot.send_message(message.chat.id, "Please join the Update Channel to get your file. https://t.me/+lKjcWcpSK8AzYzQ1")
             return
 
+        # Check if the message text is a batch code
         if message.text in batch_data:
             for file_info in batch_data[message.text]:
                 if file_info['content_type'] == 'document':
@@ -286,7 +289,25 @@ def track_users_and_send_file(message):
                 elif file_info['content_type'] == 'video':
                     bot.send_video(message.chat.id, file_info['file_id'])
         else:
-            bot.send_message(message.chat.id, "Sorry, I couldn't find a batch with that code.")
+            # Check if the message text is a file ID
+            found = False
+            for files in batch_data.values():
+                for file_info in files:
+                    if file_info['file_id'] == message.text:
+                        found = True
+                        if file_info['content_type'] == 'document':
+                            bot.send_document(message.chat.id, file_info['file_id'])
+                        elif file_info['content_type'] == 'photo':
+                            bot.send_photo(message.chat.id, file_info['file_id'])
+                        elif file_info['content_type'] == 'audio':
+                            bot.send_audio(message.chat.id, file_info['file_id'])
+                        elif file_info['content_type'] == 'video':
+                            bot.send_video(message.chat.id, file_info['file_id'])
+                        break
+                if found:
+                    break
+            if not found:
+                bot.send_message(message.chat.id, "Sorry, I couldn't find a batch or file with that ID.")
     except Exception as e:
         bot.send_message(message.chat.id, "Sorry, I couldn't find a file with that ID.")
         print(f"Error: {e}")
