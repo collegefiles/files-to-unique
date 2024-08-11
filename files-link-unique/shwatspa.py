@@ -218,6 +218,41 @@ def handle_load_user(message):
     save_user_data()
     bot.send_message(message.chat.id, "User data loaded successfully.")
 
+@bot.message_handler(commands=['get_batch'])
+def get_batch(message):
+    if message.from_user.id == AUTHORIZED_USER_ID:
+        response = "Batch Codes\n"
+        for code, files in batch_data.items():
+            response += f"Code: {code}\nTotal documents: {len(files)}\nDocument file id: {', '.join([file['file_id'] for file in files])}\n\n"
+        bot.send_message(message.chat.id, response)
+    else:
+        bot.send_message(message.chat.id, "You are not SHWAT & you can never be😏.")
+
+@bot.message_handler(commands=['load_batch'])
+def load_batch(message):
+    if message.from_user.id == AUTHORIZED_USER_ID:
+        bot.send_message(message.chat.id, "Please send the batch info in the following format:\n\n"
+                                          "Batch Codes\n"
+                                          "Code: \n"
+                                          "Total documents: \n"
+                                          "Document file id: {id 1}, {id 2}\n\n"
+                                          "Code: \n"
+                                          "Total documents: \n"
+                                          "Document file id: {id 1}, {id 2}\n")
+        bot.register_next_step_handler(message, handle_load_batch)
+    else:
+        bot.send_message(message.chat.id, "You are not SHWAT & you can never be😏.")
+
+def handle_load_batch(message):
+    batch_info_text = message.text.split('\n')[1:]  # Skip the "Batch Codes" line
+    for i in range(0, len(batch_info_text), 4):  # Adjusted to 4 to account for the format
+        code = batch_info_text[i].split(': ')[1]
+        # Skip the 'Total documents' line
+        file_ids = batch_info_text[i+2].split(': ')[1].split(', ')
+        batch_data[code] = [{'file_id': file_id, 'content_type': 'document'} for file_id in file_ids]
+    save_batch_data()
+    bot.send_message(message.chat.id, "Batch data loaded successfully.")
+
 @bot.message_handler(func=lambda message: True)
 def track_users_and_send_file(message):
     user_id = str(message.from_user.id)
