@@ -6,7 +6,7 @@ from keep_alive import keep_alive
 
 keep_alive()
 
-TOKEN = "6840829556:AAErvmLhFVDPFUsSzWURIT9g12bdaIxNzrM"  # replace with your bot token
+TOKEN = "7225097534:AAGpldNaMq-M7qUE_DFmdZn2sT2Yxw5b1Og"  # replace with your bot token
 CHANNEL_ID = "-1002022252775"  # replace with your channel ID
 UPDATE_CHANNEL_ID = "-1002102435643"  # replace with your update channel ID
 AUTHORIZED_USER_ID = 6897230899  # replace with your authorized user ID
@@ -48,7 +48,7 @@ def start(message):
             'last_name': message.from_user.last_name
         }
         save_user_data()
-    bot.send_message(message.chat.id, "Hello, I'm SHWAT's Personal Assistant, You can receive files shared by SHWAT.")
+    bot.send_message(message.chat.id, "Hello, I'm SHWAT's Personal Assistant. You can receive files shared by SHWAT.")
 
 @bot.message_handler(commands=['broadcast'])
 def broadcast(message):
@@ -113,6 +113,7 @@ def get_batch_file_count(message):
 def handle_batch_files(message, unique_code, file_count):
     if message.content_type in ['document', 'photo', 'audio', 'video']:
         file_id = None
+        caption = message.caption if message.caption else ""
         if message.content_type == 'document':
             file_id = message.document.file_id
         elif message.content_type == 'photo':
@@ -125,7 +126,8 @@ def handle_batch_files(message, unique_code, file_count):
         if file_id:
             batch_data[unique_code].append({
                 'file_id': file_id,
-                'content_type': message.content_type
+                'content_type': message.content_type,
+                'caption': caption
             })
             save_batch_data()
             bot.forward_message(CHANNEL_ID, message.chat.id, message.message_id)
@@ -158,7 +160,8 @@ def handle_files(message):
         unique_code = str(uuid.uuid4())
         batch_data[unique_code] = [{
             'file_id': channel_file_id,
-            'content_type': message.content_type
+            'content_type': message.content_type,
+            'caption': message.caption if message.caption else ""
         }]
         save_batch_data()
 
@@ -206,9 +209,9 @@ def handle_load_user(message):
     user_info_text = message.text.split('\n')[1:]  # Skip the "User Info:" line
     for i in range(0, len(user_info_text), 6):  # Adjusted to 6 to account for 'Profile Link' line
         user_id = user_info_text[i].split(': ')[1]
-        username = user_info_text[i+1].split(': ')[1]
-        first_name = user_info_text[i+2].split(': ')[1]
-        last_name = user_info_text[i+3].split(': ')[1]
+        username = user_info_text[i + 1].split(': ')[1]
+        first_name = user_info_text[i + 2].split(': ')[1]
+        last_name = user_info_text[i + 3].split(': ')[1]
         # Skip the 'Profile Link' line
         user_data[user_id] = {
             'username': username if username != 'None' else None,
@@ -221,8 +224,6 @@ def handle_load_user(message):
 @bot.message_handler(commands=['get_batch'])
 def get_batch(message):
     if message.from_user.id == AUTHORIZED_USER_ID:
-        with open(BATCH_DATA_FILE, 'r') as file:
-            batch_data = json.load(file)
         response = "Batch Codes\n"
         for code, files in batch_data.items():
             response += f"Code: {code}\nTotal documents: {len(files)}\nDocument file id: {', '.join([file['file_id'] for file in files])}\n\n"
@@ -250,7 +251,7 @@ def handle_load_batch(message):
     for i in range(0, len(batch_info_text), 4):  # Adjusted to 4 to account for the format
         code = batch_info_text[i].split(': ')[1]
         # Skip the 'Total documents' line
-        file_ids = batch_info_text[i+2].split(': ')[1].split(', ')
+        file_ids = batch_info_text[i + 2].split(': ')[1].split(', ')
         batch_data[code] = [{'file_id': file_id, 'content_type': 'document'} for file_id in file_ids]
     save_batch_data()
     bot.send_message(message.chat.id, "Batch data loaded successfully.")
@@ -283,7 +284,7 @@ def track_users_and_send_file(message):
                 if file_info['content_type'] == 'document':
                     bot.send_document(message.chat.id, file_info['file_id'])
                 elif file_info['content_type'] == 'photo':
-                    bot.send_photo(message.chat.id, file_info['file_id'])
+                    bot.send_photo(message.chat.id, file_info['file_id'], caption=file_info.get('caption', ''))
                 elif file_info['content_type'] == 'audio':
                     bot.send_audio(message.chat.id, file_info['file_id'])
                 elif file_info['content_type'] == 'video':
@@ -298,7 +299,7 @@ def track_users_and_send_file(message):
                         if file_info['content_type'] == 'document':
                             bot.send_document(message.chat.id, file_info['file_id'])
                         elif file_info['content_type'] == 'photo':
-                            bot.send_photo(message.chat.id, file_info['file_id'])
+                            bot.send_photo(message.chat.id, file_info['file_id'], caption=file_info.get('caption', ''))
                         elif file_info['content_type'] == 'audio':
                             bot.send_audio(message.chat.id, file_info['file_id'])
                         elif file_info['content_type'] == 'video':
