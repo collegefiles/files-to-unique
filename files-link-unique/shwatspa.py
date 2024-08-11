@@ -6,7 +6,7 @@ from keep_alive import keep_alive
 
 keep_alive()
 
-TOKEN = "6840829556:AAErvmLhFVDPFUsSzWURIT9g12bdaIxNzrM"  # replace with your bot token
+TOKEN = "7225097534:AAGpldNaMq-M7qUE_DFmdZn2sT2Yxw5b1Og"  # replace with your bot token
 CHANNEL_ID = "-1002022252775"  # replace with your channel ID
 UPDATE_CHANNEL_ID = "-1002102435643"  # replace with your update channel ID
 AUTHORIZED_USER_ID = 6897230899  # replace with your authorized user ID
@@ -133,7 +133,7 @@ def handle_batch_files(message, unique_code, file_count):
                 bot.send_message(message.chat.id, f"File added to batch. {file_count - len(batch_data[unique_code])} more files to go.")
                 bot.register_next_step_handler(message, handle_batch_files, unique_code, file_count)
             else:
-                bot.send_message(message.chat.id, f"Batch complete. Use the code {unique_code} to share the files.")
+                bot.send_message(message.chat.id, f"Batch complete. Use the code `{unique_code}` to share the files.", parse_mode='Markdown')
     else:
         bot.send_message(message.chat.id, "Unsupported file type. Please send a document, photo, audio, or video.")
 
@@ -162,28 +162,61 @@ def handle_files(message):
         }]
         save_batch_data()
 
-        bot.send_message(message.chat.id, f"File forwarded to channel. Use the code {unique_code} to share the file.")
+        bot.send_message(message.chat.id, f"File forwarded to channel. Use the code `{unique_code}` to share the file.", parse_mode='Markdown')
     else:
         bot.send_message(message.chat.id, "Don't send me files.")
+
+@bot.message_handler(commands=['delete'])
+def delete_code(message):
+    if message.from_user.id == AUTHORIZED_USER_ID:
+        bot.send_message(message.chat.id, "Please send the unique code you want to delete.")
+        bot.register_next_step_handler(message, handle_delete_code)
+    else:
+        bot.send_message(message.chat.id, "You are not SHWAT & you can never be😏.")
+
+def handle_delete_code(message):
+    unique_code = message.text
+    if unique_code in batch_data:
+        del batch_data[unique_code]
+        save_batch_data()
+        bot.send_message(message.chat.id, f"Unique code {unique_code} has been deleted successfully.")
+    else:
+        bot.send_message(message.chat.id, "Sorry, I couldn't find a batch with that code.")
 
 @bot.message_handler(commands=['load_user'])
 def load_user(message):
     if message.from_user.id == AUTHORIZED_USER_ID:
-        user_info_text = message.text.split('\n')[1:]  # Skip the command itself
-        for i in range(0, len(user_info_text), 5):
-            user_id = user_info_text[i].split(': ')[1]
-            username = user_info_text[i+1].split(': ')[1]
-            first_name = user_info_text[i+2].split(': ')[1]
-            last_name = user_info_text[i+3].split(': ')[1]
-            user_data[user_id] = {
-                'username': username if username != 'None' else None,
-                'first_name': first_name if first_name != 'None' else None,
-                'last_name': last_name if last_name != 'None' else None
-            }
-        save_user_data()
-        bot.send_message(message.chat.id, "User data loaded successfully.")
+        bot.send_message(message.chat.id, "Please send the user info in the following format:\n\n"
+                                          "User Info:\n"
+                                          "ID: \n"
+                                          "Username: \n"
+                                          "First Name: \n"
+                                          "Last Name: \n"
+                                          "Profile Link:\n\n"
+                                          "ID: \n"
+                                          "Username: \n"
+                                          "First Name: \n"
+                                          "Last Name: \n"
+                                          "Profile Link: \n")
+        bot.register_next_step_handler(message, handle_load_user)
     else:
         bot.send_message(message.chat.id, "You are not SHWAT & you can never be😏.")
+
+def handle_load_user(message):
+    user_info_text = message.text.split('\n')[1:]  # Skip the "User Info:" line
+    for i in range(0, len(user_info_text), 6):  # Adjusted to 6 to account for 'Profile Link' line
+        user_id = user_info_text[i].split(': ')[1]
+        username = user_info_text[i+1].split(': ')[1]
+        first_name = user_info_text[i+2].split(': ')[1]
+        last_name = user_info_text[i+3].split(': ')[1]
+        # Skip the 'Profile Link' line
+        user_data[user_id] = {
+            'username': username if username != 'None' else None,
+            'first_name': first_name if first_name != 'None' else None,
+            'last_name': last_name if last_name != 'None' else None
+        }
+    save_user_data()
+    bot.send_message(message.chat.id, "User data loaded successfully.")
 
 @bot.message_handler(func=lambda message: True)
 def track_users_and_send_file(message):
